@@ -1,9 +1,10 @@
 import { useEffect, useCallback } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useRouter as useNextRouter } from 'next/router';
-import { AbrovaTrace } from '../AbrovaTrace';
-import { RouterIntegration } from '../utils/routerIntegration';
-import { BreadcrumbService } from '../services/BreadcrumbService';
+// Everything SDK-side comes from the main entry. The "/react" bundle does not
+// carry its own copy (see tsup.config.ts), so hooks and the error boundary share
+// the instance, breadcrumbs and navigation state with AbrovaTrace.init().
+import { AbrovaTrace, RouterIntegration, BreadcrumbService } from '../index';
 
 /**
  * Hook to track App Router navigation (Next.js 13+)

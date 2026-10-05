@@ -99,7 +99,7 @@ BreadcrumbService.addUser('Clicked checkout', { cartTotal: 99 });
 
 In client components, the `useAbrovaTrace()` and `useBreadcrumbs()` hooks from `@abrova-trace/nextjs-sdk/react` return the same functions (`captureException`, `captureMessage`, `setUserId`, `addBreadcrumb` and others).
 
-`ErrorBoundary` reports render errors of its children. It accepts `fallback` (an element, or a function `(error, errorInfo, resetError) => element`), `onError` and `fallbackMessage`.
+`ErrorBoundary` reports render errors of its children. It accepts `fallback` (an element, or a function `(error, errorInfo, resetError) => element`), `onError`, `fallbackMessage` and `showErrorDetails`. The default fallback shows the error message and stack trace in development only.
 
 ### Logging
 

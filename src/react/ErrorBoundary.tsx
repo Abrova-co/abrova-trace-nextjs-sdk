@@ -1,5 +1,5 @@
 import React, { Component, ReactNode, ErrorInfo } from 'react';
-import { AbrovaTrace } from '../AbrovaTrace';
+import { AbrovaTrace } from '../index';
 
 /**
  * Error Boundary props
@@ -30,6 +30,12 @@ export interface ErrorBoundaryProps {
    * Custom error message for fallback UI
    */
   fallbackMessage?: string;
+
+  /**
+   * Whether the default fallback UI shows the error message and stack trace.
+   * @default true in development, false in production
+   */
+  showErrorDetails?: boolean;
 }
 
 /**
@@ -59,21 +65,15 @@ export class AbrovaTraceErrorBoundary extends Component<ErrorBoundaryProps, Erro
     // Store error info in state
     this.setState({ errorInfo });
 
-    console.log('[ErrorBoundary] Error caught:', error.message);
-
     // Capture error in AbrovaTrace
     const sdk = AbrovaTrace.getInstance();
-    console.log('[ErrorBoundary] SDK instance:', sdk);
-
     if (sdk) {
-      console.log('[ErrorBoundary] Calling captureException...');
       sdk.captureException(error, 'React Error Boundary', {
         componentStack: errorInfo.componentStack,
         errorBoundary: true,
       });
-      console.log('[ErrorBoundary] captureException called');
-    } else {
-      console.error('[ErrorBoundary] SDK is null - cannot capture error!');
+    } else if (process.env.NODE_ENV !== 'production') {
+      console.warn('[AbrovaTrace] ErrorBoundary caught an error before AbrovaTrace.init() was called; it was not reported.');
     }
 
     // Call custom error handler
@@ -88,7 +88,12 @@ export class AbrovaTraceErrorBoundary extends Component<ErrorBoundaryProps, Erro
 
   render(): ReactNode {
     if (this.state.hasError) {
-      const { fallback, showDefaultFallback = true, fallbackMessage } = this.props;
+      const {
+        fallback,
+        showDefaultFallback = true,
+        fallbackMessage,
+        showErrorDetails = process.env.NODE_ENV !== 'production',
+      } = this.props;
       const { error, errorInfo } = this.state;
 
       // Custom fallback function
@@ -108,6 +113,7 @@ export class AbrovaTraceErrorBoundary extends Component<ErrorBoundaryProps, Erro
             error={error}
             errorInfo={errorInfo}
             message={fallbackMessage}
+            showDetails={showErrorDetails}
             onReset={this.resetError}
           />
         );
@@ -128,10 +134,11 @@ interface DefaultErrorFallbackProps {
   error?: Error;
   errorInfo?: ErrorInfo;
   message?: string;
+  showDetails: boolean;
   onReset: () => void;
 }
 
-function DefaultErrorFallback({ error, errorInfo, message, onReset }: DefaultErrorFallbackProps) {
+function DefaultErrorFallback({ error, errorInfo, message, showDetails, onReset }: DefaultErrorFallbackProps) {
   return (
     <div
       style={{
@@ -149,7 +156,7 @@ function DefaultErrorFallback({ error, errorInfo, message, onReset }: DefaultErr
       <p style={{ margin: '0 0 15px 0', color: '#495057' }}>
         {message || 'An unexpected error occurred. Our team has been notified.'}
       </p>
-      {error && (
+      {showDetails && error && (
         <details style={{ marginBottom: '15px' }}>
           <summary style={{ cursor: 'pointer', color: '#495057', marginBottom: '10px' }}>
             Error details

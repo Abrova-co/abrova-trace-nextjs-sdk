@@ -15,12 +15,22 @@ import { PerformanceClient, createPerformanceFetch } from './performance/Perform
 import type { PerformanceSpan } from './performance/PerformanceSpan';
 import { ABROVATRACE_API_URL } from './constants';
 
+const INSTANCE_KEY = Symbol.for('abrova.trace.nextjs.instance');
+
 /**
  * AbrovaTrace SDK for Next.js
  * Comprehensive error tracking, crash detection, and breadcrumbs
  */
 export class AbrovaTrace {
-  private static instance: AbrovaTrace | null = null;
+  // The instance lives on globalThis, not on the class: the package ships two
+  // bundles (the main entry and "/react") and each has its own copy of this
+  // class. Both must see the instance created by init().
+  private static get instance(): AbrovaTrace | null {
+    return (globalThis as any)[INSTANCE_KEY] ?? null;
+  }
+  private static set instance(value: AbrovaTrace | null) {
+    (globalThis as any)[INSTANCE_KEY] = value;
+  }
   private config: NormalizedConfig;
   private userId?: string;
   private sessionId: string;

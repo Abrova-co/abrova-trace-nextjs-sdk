@@ -1,5 +1,5 @@
 // Re-export AbrovaTrace so all imports come from one place
-export { AbrovaTrace } from '../AbrovaTrace';
+export { AbrovaTrace } from '../index';
 
 // React components and hooks
 export * from './hooks';

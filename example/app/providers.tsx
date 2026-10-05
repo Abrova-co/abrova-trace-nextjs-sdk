@@ -14,7 +14,10 @@ export function Providers({ children }: { children: ReactNode }) {
     // Initialize AbrovaTrace SDK
     AbrovaTrace.init({
       apiKey: process.env.NEXT_PUBLIC_ABROVA_TRACE_API_KEY || 'ab_live_demo',
-      apiUrl: 'http://localhost:3001',
+      // Only for a self-hosted or local server; leave unset to use Abrova Trace.
+      ...(process.env.NEXT_PUBLIC_ABROVA_TRACE_API_URL
+        ? { apiUrl: process.env.NEXT_PUBLIC_ABROVA_TRACE_API_URL }
+        : {}),
       environment: process.env.NODE_ENV,
       release: process.env.NEXT_PUBLIC_APP_VERSION || '0.1.0',
       debug: true, // Enable debug logging for demo

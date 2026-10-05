@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8 - 2026-10-05
+
+- `ErrorBoundary` and the hooks from `@abrova-trace/nextjs-sdk/react` now use the SDK you initialised with `AbrovaTrace.init()`. Before, errors caught by the boundary were not reported.
+- The default `ErrorBoundary` fallback no longer shows the error message and stack trace in production. Use the new `showErrorDetails` prop to choose.
+- `ErrorBoundary` no longer writes debug lines to the browser console.
+
 ## 0.1.5 - 2026-10-05
 
 First public release.
