@@ -7,6 +7,7 @@ import type {
 } from './models';
 import { BreadcrumbService } from './services/BreadcrumbService';
 import { CrashDetector } from './services/CrashDetector';
+import { ReleaseHealth } from './services/ReleaseHealth';
 import { RateLimiter } from './utils/rateLimiter';
 import { getPlatformString, isBrowser, isServer, getRequestHeaders, withSdkContext } from './utils/platform';
 import { RouterIntegration } from './utils/routerIntegration';
@@ -41,6 +42,7 @@ export class AbrovaTrace {
   private performanceClient: PerformanceClient | null = null;
   private logService: import('./logging').LogService | null = null;
   private logServiceInitPromise: Promise<void> | null = null;
+  private releaseHealth: ReleaseHealth | null = null;
 
   private constructor(config: AbrovaTraceConfig) {
     this.config = this.normalizeConfig(config);
@@ -112,6 +114,9 @@ export class AbrovaTrace {
       this.setupCrashDetection();
     }
 
+    // Release health: sessions and crash-free sessions per release (browser only)
+    this.setupReleaseHealth();
+
     this.isInitialized = true;
 
     if (this.config.debug) {
@@ -153,6 +158,63 @@ export class AbrovaTrace {
   }
 
   /**
+   * Release health, in the browser only (server and edge code never send sessions).
+   * Crashes come from the error handlers below and from the React ErrorBoundary.
+   */
+  private setupReleaseHealth(): void {
+    if (!isBrowser() || !this.config.enabled || !this.config.enableReleaseHealth || !this.config.enableClientSide) return;
+    try {
+      this.releaseHealth = new ReleaseHealth({
+        apiUrl: this.config.apiUrl,
+        apiKey: this.config.apiKey,
+        platform: getPlatformString(),
+        environment: this.config.environment,
+        release: this.config.release,
+        userId: () => this.userId,
+        timeoutMs: this.config.timeout * 1000,
+        debug: this.config.debug,
+      });
+      this.releaseHealth.start();
+      // Without the SDK's own handlers, still listen for crashes.
+      if (!this.config.captureUncaughtErrors) {
+        window.addEventListener('error', (event) => this.releaseHealthError(event));
+        window.addEventListener('unhandledrejection', (event) => this.releaseHealthRejection(event));
+      }
+    } catch (err) {
+      this.releaseHealth = null;
+      if (this.config.debug) console.log('[AbrovaTrace] Release health not started:', err);
+    }
+  }
+
+  /** An uncaught browser error: the session crashed if the error is the app's (see isAppError). */
+  private releaseHealthError(event: ErrorEvent): void {
+    if (!this.releaseHealth) return;
+    const stack = event?.error && typeof event.error.stack === 'string' ? event.error.stack : undefined;
+    if (this.shouldIgnoreError(String(event?.message ?? ''), stack)) return;
+    this.releaseHealth.onErrorEvent(event);
+  }
+
+  private releaseHealthRejection(event: PromiseRejectionEvent): void {
+    if (!this.releaseHealth) return;
+    const reason = event?.reason;
+    const message = reason instanceof Error ? reason.message : String(reason);
+    if (this.shouldIgnoreError(message, reason instanceof Error ? reason.stack : undefined)) return;
+    this.releaseHealth.onRejection(reason);
+  }
+
+  /**
+   * A render crash caught by the SDK's ErrorBoundary: the current session crashed.
+   * @internal
+   */
+  markSessionCrashed(): void {
+    try {
+      this.releaseHealth?.markCrashed();
+    } catch {
+      // never into the app
+    }
+  }
+
+  /**
    * Setup crash detection
    */
   private async setupCrashDetection(): Promise<void> {
@@ -175,6 +237,7 @@ export class AbrovaTrace {
    * Handle browser errors
    */
   private handleBrowserError(event: ErrorEvent): void {
+    this.releaseHealthError(event);
     const { message, filename, lineno, colno, error } = event;
 
     // Build stack trace
@@ -205,6 +268,7 @@ export class AbrovaTrace {
    * Handle unhandled promise rejections
    */
   private handleUnhandledRejection(event: PromiseRejectionEvent): void {
+    this.releaseHealthRejection(event);
     const reason = event.reason;
     const message = reason instanceof Error ? reason.message : String(reason);
     const stackTrace = reason instanceof Error ? reason.stack : undefined;
@@ -296,7 +360,7 @@ export class AbrovaTrace {
       release: this.config.release,
       timestamp: new Date().toISOString(),
       user_id: this.userId,
-      session_id: this.sessionId,
+      session_id: this.getSessionId(),
       extra: { ...this.extras, ...extra },
       tags: this.tags,
       breadcrumbs: BreadcrumbService.toJSON(),
@@ -358,7 +422,7 @@ export class AbrovaTrace {
       release_version: this.config.release,
       timestamp: new Date().toISOString(),
       user_id: this.userId,
-      session_id: this.sessionId,
+      session_id: this.getSessionId(),
       extra: cleanExtra,
       tags: this.tags,
       level,
@@ -490,7 +554,7 @@ export class AbrovaTrace {
       release_version: this.config.release,
       timestamp: crashReport.detectedTime,
       user_id: this.userId,
-      session_id: this.sessionId,
+      session_id: this.getSessionId(),
       extra: { ...this.extras, ...crashReport },
       tags: this.tags,
       level: 'fatal',
@@ -514,10 +578,10 @@ export class AbrovaTrace {
   }
 
   /**
-   * Get session ID (auto-generated per SDK init, matching Flutter SDK)
+   * Get session ID: the release health session in the browser (one per tab), else one per SDK init
    */
   getSessionId(): string {
-    return this.sessionId;
+    return this.releaseHealth?.sessionId ?? this.sessionId;
   }
 
   // ==================== EXTRAS (Global Context) ====================
@@ -853,6 +917,8 @@ export class AbrovaTrace {
       CrashDetector.markAppClose();
     }
 
+    this.releaseHealth?.stop();
+
     // Flush logs before closing
     this.logService?.dispose();
 
@@ -882,6 +948,7 @@ export class AbrovaTrace {
       enableServerSide: config.enableServerSide ?? true,
       enableClientSide: config.enableClientSide ?? true,
       enableCrashDetection: config.enableCrashDetection ?? true,
+      enableReleaseHealth: config.enableReleaseHealth ?? true,
       beforeSend: config.beforeSend,
       ignoreErrors: config.ignoreErrors || [],
       ignoreUrls: config.ignoreUrls || [],

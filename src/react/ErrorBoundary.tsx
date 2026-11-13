@@ -72,6 +72,8 @@ export class AbrovaTraceErrorBoundary extends Component<ErrorBoundaryProps, Erro
         componentStack: errorInfo.componentStack,
         errorBoundary: true,
       });
+      // A render crash the user sees: the session counts as crashed (release health).
+      sdk.markSessionCrashed?.();
     } else if (process.env.NODE_ENV !== 'production') {
       console.warn('[AbrovaTrace] ErrorBoundary caught an error before AbrovaTrace.init() was called; it was not reported.');
     }

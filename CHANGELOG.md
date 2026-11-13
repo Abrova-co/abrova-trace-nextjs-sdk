@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.0 - 2026-11-14
+
+- Release health: in the browser, the SDK now reports sessions so the console shows crash-free sessions and crash-free users per release. One session per browser tab; a session counts as crashed when the `ErrorBoundary` catches a render error or an uncaught error comes from your own code. Sends a random install id kept in `localStorage`, never a device id. Sessions are free. Turn it off with `enableReleaseHealth: false`.
+- In the browser, `getSessionId()` and the `session_id` sent with errors and messages are now the release health session (one per tab, kept across reloads).
+
 ## 0.1.8 - 2026-10-05
 
 - `ErrorBoundary` and the hooks from `@abrova-trace/nextjs-sdk/react` now use the SDK you initialised with `AbrovaTrace.init()`. Before, errors caught by the boundary were not reported.

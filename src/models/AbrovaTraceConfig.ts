@@ -81,6 +81,13 @@ export interface AbrovaTraceConfig {
   enableCrashDetection?: boolean;
 
   /**
+   * Release health: report browser sessions so the console shows crash-free
+   * sessions and users per release. Browser only; sessions are free.
+   * @default true
+   */
+  enableReleaseHealth?: boolean;
+
+  /**
    * Callback function called before sending an error
    * Return false to prevent sending
    */

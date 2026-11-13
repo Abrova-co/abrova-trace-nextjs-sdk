@@ -314,6 +314,7 @@ describe('AbrovaTraceConfig types and enums', () => {
         enableServerSide: true,
         enableClientSide: true,
         enableCrashDetection: true,
+        enableReleaseHealth: true,
         ignoreErrors: [],
         ignoreUrls: [],
       };
@@ -339,6 +340,7 @@ describe('AbrovaTraceConfig types and enums', () => {
         enableServerSide: true,
         enableClientSide: true,
         enableCrashDetection: true,
+        enableReleaseHealth: true,
         ignoreErrors: [],
         ignoreUrls: [],
         beforeSend: (err) => err,

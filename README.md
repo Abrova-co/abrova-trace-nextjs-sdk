@@ -119,6 +119,18 @@ trace?.enableWebVitals();           // LCP, FID, CLS, INP, TTFB, FCP
 const users = await trace?.trackOperation('load-users', () => loadUsers(), { operationType: 'db' });
 ```
 
+### Release health
+
+In the browser, the SDK reports sessions so the console shows crash-free sessions and crash-free users for each `release`. Set `release` in `init()` to see them per version.
+
+- A session is one browser tab. Reloads and page changes in the same tab keep it. A new tab, or a tab that comes back after 30 minutes in the background, starts a new session.
+- A session counts as crashed when the `ErrorBoundary` catches a render error, or when an uncaught error or unhandled promise rejection comes from your own code. Errors from browser extensions and from scripts on other sites do not count. Errors you filter with `ignoreErrors` or `ignoreUrls` do not count either.
+- Each report holds a random session id, a random install id (made in the browser and kept in `localStorage`, never a device id), the start time, the release, the environment, the platform and the user id you set with `setUserId()`. Reports that cannot be sent are kept and sent later.
+- Server code never reports sessions.
+- Sessions are free; they do not count toward your plan.
+
+To turn it off, pass `enableReleaseHealth: false` to `init()`.
+
 ## Configuration
 
 Options for `AbrovaTrace.init()`:
@@ -133,6 +145,7 @@ Options for `AbrovaTrace.init()`:
 | `captureUncaughtErrors` | `true` | Report uncaught errors and unhandled promise rejections |
 | `enableClientSide`, `enableServerSide` | `true` | Install the automatic error handlers in the browser / on the server |
 | `enableCrashDetection` | `true` | Report a browser session that ended without closing normally |
+| `enableReleaseHealth` | `true` | Report browser sessions for crash-free sessions and users per release |
 | `sampleRate` | `1.0` | Share of errors and messages to report, from 0.0 to 1.0 |
 | `maxBreadcrumbs` | `20` | Breadcrumbs kept in memory |
 | `timeout` | `10` | Request timeout in seconds |
